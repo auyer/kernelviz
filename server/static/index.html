@@ -9,6 +9,7 @@
 	  <meta name="author" content="Arthur Pilone Maia da Silva <arthurpilone@usp.br>">
 	  <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="static/script.js"></script>
     <link rel="stylesheet" href="static/style.css">
 </head>
@@ -19,105 +20,151 @@
     <section class="flexRow">
         <div id="plotDiv" style="width:75vw;height:80vh;"></div>
         <div id="controls">
-            <div>
-                <input type="checkbox" name="checkAuthors" onchange="replotOnToggle(this)" checked />
-                <label for="checkAuthors"> Authors </label>
-            </div>
-            <div>
-                <input type="checkbox" name="checkCommitters" onchange="replotOnToggle(this)" checked />
-                <label for="checkCommitters"> Committers </label>
-            </div>
-            <div>
-                <input type="checkbox" name="checkReviewed_Bys" onchange="replotOnToggle(this)" />
-                <label for="checkReviewed_Bys"> Reviewed-by's </label>
+            <div v-for="(checked, metric) in metrics" :key="metric">
+                <input type="checkbox" :id="'check' + metric" v-model="metrics[metric]" @change="handleMetricChange" />
+                <label :for="'check' + metric">{{ formatMetricName(metric) }}</label>
             </div>
             <br>
             <div>
-                <input type="checkbox" name="checkMaintainers_Listed" onchange="replotOnToggle(this)" />
-                <label for="checkMaintainers_Listed"> Entries on MAINTEINERS file </label>
-            </div>
-            <div>
-                <input type="checkbox" name="checkAuthoring_Maintainers" onchange="replotOnToggle(this)" />
-                <label for="checkAuthoring_Maintainers"> Authoring Maintainers </label>
-            </div>
-            <div>
-                <input type="checkbox" name="checkSupporting_Maintainers" onchange="replotOnToggle(this)" />
-                <label for="checkSupporting_Maintainers"> Supporting Maintainers </label>
-            </div>
-            <br>
-            <div>
-                <input type="checkbox" name="checkCommits" onchange="replotOnToggle(this)" />
-                <label for="checkCommits"> Commits </label>
-            </div>
-            <br>
-            <div>
-                <input type="checkbox" name="checkLoC_Added" onchange="replotOnToggle(this)" />
-                <label for="checkLoC_Added"> LoC added </label> 
-            </div>
-            <div>
-                <input type="checkbox" name="checkLoC_Removed" onchange="replotOnToggle(this)" />
-                <label for="checkLoC_Removed"> LoC removed </label>
-            </div>
-            <div>
-                <input type="checkbox" name="checkLoC_Changes" onchange="replotOnToggle(this)" />
-                <label for="checkLoC_Changes"> LoC changed </label>
-            </div>
-            <div>
-                <input type="checkbox" name="checkLoC_Net" onchange="replotOnToggle(this)" checked />
-                <label for="checkLoC_Net"> Net LoC flow </label>
-            </div>
-            <br>
-            <div>
-                <input type="checkbox" name="checkTags" onchange="replotOnToggle(this)" />
-                <label for="checkTags"> Show Release Tags </label>
-            </div>
-            <br>
-            <div>
-                <input id="checkCustom" type="checkbox" name="checkCustom" onchange="toggleCustomRatio()" />
+                <input id="checkCustom" type="checkbox" v-model="showCustomRatio" @change="handleCustomRatioChange" />
                 <label for="checkCustom"> Plot Custom Ratio</label>
             </div>
-            <div id="customRatioArea" style="display: none;">
-                <select name="overRatio" onchange="updateOver(this)">  
-                    <option name="overAuthors">Authors</option>
-                    <option name="overCommitters">Committers</option>
-                    <option name="overReviewed_Bys">Reviewed Bys</option>
-                    <option name="overMaintainers_Listed">Maintainers Listed</option>
-                    <option name="overAuthoring_Maintainers">Authoring Maintainers</option>
-                    <option name="overSupporting_Maintainers">Supporting Maintainers</option>
-                    <option name="overCommits">Commits</option>
-                    <option name="overLoC_Added">LoC Added</option>
-                    <option name="overLoC_Removed">LoC Removed</option>
-                    <option name="overLoC_Net">LoC Net</option>
-                    <option name="overLoC_Changes" selected>LoC Changes</option>
+            <div v-show="showCustomRatio" id="customRatioArea">
+                <select v-model="overRatio" @change="handleRatioChange">  
+                    <option v-for="metric in availableMetrics" :key="'over' + metric" :value="metric">
+                        {{ formatMetricName(metric) }}
+                    </option>
                 </select>
                 <p style="text-align: center;">by</p>
-                <select name="underRatio" onchange="updateUnder(this)">
-                    <option name="underAuthors">Authors</option>
-                    <option name="underCommitters" selected>Committers</option>
-                    <option name="underReviewed_Bys">Reviewed Bys</option>
-                    <option name="underMaintainers_Listed">Maintainers Listed</option>
-                    <option name="underAuthoring_Maintainers">Authoring Maintainers</option>
-                    <option name="underSupporting_Maintainers">Supporting Maintainers</option>
-                    <option name="underCommits">Commits</option>
-                    <option name="underLoC_Added">LoC Added</option>
-                    <option name="underLoC_Removed">LoC Removed</option>
-                    <option name="underLoC_Net">LoC Net</option>
-                    <option name="underLoC_Changes">LoC Changes</option>
+                <select v-model="underRatio" @change="handleRatioChange">
+                    <option v-for="metric in availableMetrics" :key="'under' + metric" :value="metric">
+                        {{ formatMetricName(metric) }}
+                    </option>
                 </select>
             </div>
             <br>
             <div>
                 <label for="windowLen"> Sliding Window Length</label>
-                <select name="windowLen" onchange="updateWindowLen(this)">  
-                    <option id="window1">1 Day</option>
-                    <option id="window5">5 Days</option>
-                    <option id="window14" selected>2 Weeks</option>
-                    <option id="window30">1 Month</option>
-                    <option id="window365">1 Year</option>
+                <select v-model="windowLength" @change="handleWindowChange">  
+                    <option v-for="(label, value) in windowOptions" :key="value" :value="value">
+                        {{ label }}
+                    </option>
                 </select>
             </div>
         </div>
     </section>
 
+    <script>
+        const { createApp, ref, computed } = Vue
+
+        createApp({
+            setup() {
+                // Available metrics for selection
+                const availableMetrics = [
+                    'Authors', 'Committers', 'Reviewed_Bys', 'Maintainers_Listed',
+                    'Authoring_Maintainers', 'Supporting_Maintainers', 'Commits',
+                    'LoC_Added', 'LoC_Removed', 'LoC_Changes', 'LoC_Net'
+                ]
+
+                // Window length options
+                const windowOptions = {
+                    1: '1 Day',
+                    5: '5 Days',
+                    14: '2 Weeks',
+                    30: '1 Month',
+                    365: '1 Year'
+                }
+
+                // State management
+                const metrics = ref({
+                    Authors: true,
+                    Committers: true,
+                    Reviewed_Bys: false,
+                    Maintainers_Listed: false,
+                    Authoring_Maintainers: false,
+                    Supporting_Maintainers: false,
+                    Commits: false,
+                    LoC_Added: false,
+                    LoC_Removed: false,
+                    LoC_Changes: false,
+                    LoC_Net: true,
+                    Tags: false
+                })
+
+                const showCustomRatio = ref(false)
+                const overRatio = ref('LoC_Changes')
+                const underRatio = ref('Committers')
+                const windowLength = ref(14)
+
+                // Methods
+                const formatMetricName = (metric) => {
+                    return metric.replace(/_/g, ' ')
+                }
+
+                const handleMetricChange = () => {
+                    // Update branchData and replot
+                    const branchData = getBranchData()
+                    branchData.leftDataPoints = []
+                    branchData.rightDataPoints = []
+
+                    for (const [metric, checked] of Object.entries(metrics.value)) {
+                        if (metric === 'Tags') {
+                            branchData.showTags = checked
+                            continue
+                        }
+
+                        if (checked) {
+                            if (['Authors', 'Committers', 'Reviewed_Bys', 'Maintainers_Listed', 
+                                 'Authoring_Maintainers', 'Supporting_Maintainers', 'Commits'].includes(metric)) {
+                                branchData.leftDataPoints.push(metric)
+                            } else {
+                                branchData.rightDataPoints.push(metric)
+                            }
+                        }
+                    }
+
+                    plot_figure()
+                }
+
+                const handleCustomRatioChange = () => {
+                    const branchData = getBranchData()
+                    branchData.showRatio = showCustomRatio.value
+                    branchData.overRatio = overRatio.value
+                    branchData.underRatio = underRatio.value
+                    plot_figure()
+                }
+
+                const handleRatioChange = () => {
+                    if (showCustomRatio.value) {
+                        const branchData = getBranchData()
+                        branchData.overRatio = overRatio.value
+                        branchData.underRatio = underRatio.value
+                        plot_figure()
+                    }
+                }
+
+                const handleWindowChange = () => {
+                    computeBranchData(windowLength.value).then(() => {
+                        plot_figure()
+                    })
+                }
+
+                return {
+                    metrics,
+                    showCustomRatio,
+                    overRatio,
+                    underRatio,
+                    windowLength,
+                    availableMetrics,
+                    windowOptions,
+                    formatMetricName,
+                    handleMetricChange,
+                    handleCustomRatioChange,
+                    handleRatioChange,
+                    handleWindowChange
+                }
+            }
+        }).mount('#controls')
+    </script>
 </body>
 </html>

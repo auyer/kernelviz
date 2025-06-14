@@ -326,14 +326,14 @@ async function computeBranchData(windowRadius=14){
     const allData = {
         'Authors' : {'axisLabel': 'Contributions', 'data': contribs_results[1]},
         'Committers' : {'axisLabel': 'Contributions', 'data': contribs_results[2]},
-        'Reviewed Bys' : {'axisLabel': 'Contributions', 'data': attribData["reviewed-by"]["runningCount"]},
-        'Authoring Maintainers' : {'axisLabel': 'Contributions', 'data': contribs_results[4]},
-        'Supporting Maintainers' : {'axisLabel': 'Contributions', 'data': contribs_results[5]},
-        'Maintainers Listed' : {'axisLabel': 'Contributions', 'data': diffs_results[6]},
-        'LoC Added' : {'axisLabel': 'LoC', 'data': diffs_results[1]},
-        'LoC Removed' : {'axisLabel': 'LoC', 'data': diffs_results[2]},
-        'LoC Net' : {'axisLabel': 'LoC', 'data': diffs_results[3]},
-        'LoC Changes' :  {'axisLabel': 'LoC', 'data': diffs_results[4]},
+        'Reviewed_Bys' : {'axisLabel': 'Contributions', 'data': attribData["reviewed-by"] ? attribData["reviewed-by"]["runningCount"] : Array(contribs_results[0].length).fill(0)},
+        'Authoring_Maintainers' : {'axisLabel': 'Contributions', 'data': contribs_results[4]},
+        'Supporting_Maintainers' : {'axisLabel': 'Contributions', 'data': contribs_results[5]},
+        'Maintainers_Listed' : {'axisLabel': 'Contributions', 'data': diffs_results[6]},
+        'LoC_Added' : {'axisLabel': 'LoC', 'data': diffs_results[1]},
+        'LoC_Removed' : {'axisLabel': 'LoC', 'data': diffs_results[2]},
+        'LoC_Net' : {'axisLabel': 'LoC', 'data': diffs_results[3]},
+        'LoC_Changes' :  {'axisLabel': 'LoC', 'data': diffs_results[4]},
         'Commits' : {'axisLabel': 'Contributions', 'data': diffs_results[5]}
     }
 
@@ -346,12 +346,12 @@ async function computeBranchData(windowRadius=14){
 
         const newBranchData = {
             'leftDataPoints': ['Authors','Committers'],
-            'rightDataPoints':  ['LoC Net'],
+            'rightDataPoints':  ['LoC_Net'],
             'allData': allData,
             'commitDates': dates,
             'tags' : tags,
             'showTags' : false,
-            'overRatio' : 'LoC Changes',
+            'overRatio' : 'LoC_Changes',
             'underRatio' : 'Committers',
             'showRatio' : false
         };
@@ -387,12 +387,16 @@ function plot_figure(){
     let rightAxisLabel;
 
     for(leftKey of branchData['leftDataPoints']){
+        if (!branchData['allData'][leftKey]) {
+            console.warn(`Missing data for ${leftKey}`);
+            continue;
+        }
         data.push({
             x: xData,
             y: branchData['allData'][leftKey]['data'],
             type: 'lines',
             yaxis: 'y',
-            name: leftKey
+            name: leftKey.replace(/_/g, ' ')
         })
         leftAxisLabel = branchData['allData'][leftKey]['axisLabel'];
     }
@@ -402,12 +406,16 @@ function plot_figure(){
     }
     
     for(rightKey of branchData['rightDataPoints']){
+        if (!branchData['allData'][rightKey]) {
+            console.warn(`Missing data for ${rightKey}`);
+            continue;
+        }
         data.push({
             x: xData,
             y: branchData['allData'][rightKey]['data'],
             type: 'lines',
             yaxis: 'y2',
-            name: rightKey
+            name: rightKey.replace(/_/g, ' ')
         })
         rightAxisLabel = branchData['allData'][rightKey]['axisLabel'];
     }
@@ -523,82 +531,5 @@ function loadExtraAttributions(commits){
     }
     return commits
 }
-
-/**
- * Replots the graph once a given input is toggled.
- * @param {*} toggledInputElem 
- */
-function replotOnToggle(toggledInputElem){
-
-    const checked = toggledInputElem.checked;
-    const dataPoints = getBranchData();
-    const titleValue = toggledInputElem.name.slice(5).replace("_"," ");  
-
-    if(titleValue === "Tags"){
-        dataPoints["showTags"] = checked;
-        plot_figure()
-        return
-    }
-
-    if(LEFTDATAPOINTS.includes(titleValue)){
-        if(checked){
-            if(dataPoints["leftDataPoints"].includes(titleValue)){
-                return;
-            }
-            dataPoints["leftDataPoints"].push(titleValue);
-        }else if(dataPoints["leftDataPoints"].includes(titleValue)){
-            dataPoints["leftDataPoints"].splice(dataPoints["leftDataPoints"].indexOf(titleValue),1);
-        }
-    }else{
-        if(checked){
-            if(dataPoints["rightDataPoints"].includes(titleValue)){
-                return;
-            }
-            dataPoints["rightDataPoints"].push(titleValue);
-        }else if(dataPoints["rightDataPoints"].includes(titleValue)){
-            dataPoints["rightDataPoints"].splice(dataPoints["rightDataPoints"].indexOf(titleValue),1);
-        }
-    }
-
-    plot_figure()
-
-}
-
-function toggleCustomRatio(){
-    const checked = document.getElementById("checkCustom").checked
-    const ratioDiv = document.getElementById("customRatioArea")
-
-    getBranchData()["showRatio"] = checked
-
-    if(checked){
-        ratioDiv.style.display = "block";
-    }else{
-        ratioDiv.style.display = "none";
-    }
-
-    plot_figure();
-}
-
-function updateOver(component){
-    const chosen = component.selectedOptions[0].value;
-    getBranchData()["overRatio"] = chosen;
-    plot_figure();
-}
-
-function updateUnder(component){
-    const chosen = component.selectedOptions[0].value;
-    getBranchData()["underRatio"] = chosen;
-    plot_figure();
-}
-
-function updateWindowLen(component){
-
-    const nextWindow = parseInt(component.selectedOptions[0].id.slice(6))
-
-   computeBranchData(nextWindow).then(
-    () => {plot_figure()}
-   )
-}
-
 
 get_commits().then( (commits) => {collectedCommits = loadExtraAttributions(commits);computeBranchData()})
