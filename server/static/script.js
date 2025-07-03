@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 collectedCommits: null,
                 collectedTags: null,
                 resizeTimeout: null,
-                isLoading: false
+                isLoading: true
             }
         },
         mounted() {
